@@ -885,7 +885,10 @@ trait ExprFormatter { self: HasFormattingPreferences with AnnotationFormatter wi
       }
     }
     formatResult ++= format(defOrDcl)
-    formatResult
+    modifiers.headOption.fold(formatResult.before(defOrDcl.firstToken, formatterState.currentIndentLevelInstruction)){ modifier =>
+      formatResult.before(modifier.firstToken, formatterState.currentIndentLevelInstruction)
+    }
+
   }
 
   private def format(defOrDcl: DefOrDcl)(implicit formatterState: FormatterState): FormatResult = defOrDcl match {
@@ -971,8 +974,10 @@ trait ExprFormatter { self: HasFormattingPreferences with AnnotationFormatter wi
   protected def calculateParamSectionLengths(param: Param, first: Boolean)(implicit formatterState: FormatterState): Option[ParamSectionLengths] = {
     val Param(annotations, modifiers, valOrVarOpt, id, paramTypeOpt, defaultValueOpt) = param
 
+    val tokenIsOnNewline = hiddenPredecessors(param.firstToken).containsNewline
+
     val formattedParam = formattedAstNode(param) {
-      format(param)(formatterState)
+      format(param, tokenIsOnNewline)(formatterState)
     }
 
     def calculateLengths: ParamSectionLengths = {
@@ -1180,7 +1185,7 @@ trait ExprFormatter { self: HasFormattingPreferences with AnnotationFormatter wi
         case None ⇒
           alignFirstParam(firstParam)
       }
-      formatResult ++= format(firstParam)(paramFormatterState)
+      formatResult ++= format(firstParam, firstTokenIsOnNewline)(paramFormatterState)
     }
 
     otherGroupedParams.foreach {
@@ -1197,11 +1202,11 @@ trait ExprFormatter { self: HasFormattingPreferences with AnnotationFormatter wi
           // Indent Default
           indentDefault(param, maxSectionLengths)
 
-          formatResult ++= format(param)(paramFormatterState)
+          formatResult ++= format(param, firstTokenIsOnNewline)(paramFormatterState)
         }
       case Right(param) ⇒
         alignOtherParams(param.firstToken)
-        formatResult ++= format(param)(paramFormatterState)
+        formatResult ++= format(param, firstTokenIsOnNewline)(paramFormatterState)
     }
 
     def alignFirstParam(firstParam: Param) = {
@@ -1264,12 +1269,20 @@ trait ExprFormatter { self: HasFormattingPreferences with AnnotationFormatter wi
 
   }
 
-  private def format(param: Param)(implicit formatterState: FormatterState): FormatResult = {
-    val Param(annotations: List[Annotation], modifiers: List[Modifier], valOrVarOpt: Option[Token], id: Token, paramTypeOpt: Option[(Token, Type)], defaultValueOpt: Option[(Token, Expr)]) = param
+  private def format(param: Param, identAddnotation: Boolean)(implicit formatterState: FormatterState): FormatResult = {
+    val Param(annotations: List[Annotation], modifiers: List[Modifier], valVarOpt: Option[Token], id: Token, paramTypeOpt: Option[(Token, Type)], defaultValueOpt: Option[(Token, Expr)]) = param
     var formatResult: FormatResult = NoFormatResult
 
     for (annotation ← annotations) {
-      formatResult ++= format(annotation)
+      val result: FormatResult = format(annotation)
+      if(identAddnotation){
+        formatResult ++= result.before(annotation.at,formatterState.currentIndentLevelInstruction)
+      } else {
+        formatResult ++= result
+      }
+    }
+    if(identAddnotation){
+      formatResult = formatResult.before(id, formatterState.currentIndentLevelInstruction )
     }
     for ((colon, paramType) ← paramTypeOpt) {
       formatResult ++= format(paramType)

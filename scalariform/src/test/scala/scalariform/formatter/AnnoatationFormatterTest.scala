@@ -23,34 +23,35 @@ class AnnoatationFormatterTest extends AbstractFormatterTest {
     |    @annotation one: Int,
     |    @a @b(c) two: String
     |    ) = ???
-    |}
-  """.stripMargin ==>
-  """
-    |class X {
+    |}""".stripMargin ==>
+  """class X {
     |  def asdf(
     |    @annotation
     |    one: Int,
     |    @a
     |    @b(c)
     |    two: String
-    |  )
-    |}
-  """.stripMargin
+    |  ) = ???
+    |}""".stripMargin
 
   """class A extends B {
     |  @SomeImportantAnnotation(param = true) override val param: Int = 1
     |
     |  @NotSoImportantAnnotation(param = false) val description: String = "Not so important"
-    |}
-  """.stripMargin ==>
+    |}""".stripMargin ==>
   """class A extends B {
     |  @SomeImportantAnnotation(param = true)
     |  override val param: Int = 1
     |
     |  @NotSoImportantAnnotation(param = false)
     |  val description: String = "Not so important"
-    |}
-  """.stripMargin
+    |}""".stripMargin
+
+  """@foo class X {
+    |}""".stripMargin ==>
+  """@foo
+    |class X {
+    |}""".stripMargin
 
 
 }
